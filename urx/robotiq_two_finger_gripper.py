@@ -157,9 +157,17 @@ class Robotiq_Two_Finger_Gripper(object):
         self.logger = logging.getLogger(u"robotiq")
 
         # Send the start script to init and close gripper
-        start_script = self._get_new_urscript()
-        start_script._set_gripper_position(255)
-        self.robot.send_program(start_script())
+        urscript = self._get_new_urscript()
+
+        # Initialize the gripper
+        urscript._set_robot_activate()
+        urscript._set_gripper_activate()
+
+        # Wait on activation to avoid USB conflicts
+        urscript._sleep(0.1)
+        urscript._set_gripper_position(255)
+
+        self.robot.send_program(urscript())
 
     def _get_new_urscript(self):
         """
@@ -184,13 +192,6 @@ class Robotiq_Two_Finger_Gripper(object):
         urscript._set_gripper_speed(self.speed)
         urscript._set_gripper_force(self.force)
 
-        # Initialize the gripper
-        urscript._set_robot_activate()
-        urscript._set_gripper_activate()
-
-        # Wait on activation to avoid USB conflicts
-        urscript._sleep(0.1)
-
         return urscript
 
 
@@ -201,9 +202,7 @@ class Robotiq_Two_Finger_Gripper(object):
         0 is open
         255 is closed
         """
-        urscript = RobotiqScript(socket_host=self.socket_host,
-                                 socket_port=self.socket_port,
-                                 socket_name=self.socket_name)
+        urscript = self._get_new_urscript()
 
         # Move to the position
         sleep = 2.0
