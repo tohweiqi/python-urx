@@ -88,8 +88,8 @@ class RobotiqScript(URScript):
             self.add_header_to_program(rq_script)
 
     def _rq_get_var(self, var_name, nbytes):
-        self._socket_send_string("GET {}".format(var_name))
-        self._socket_read_byte_list(nbytes)
+        self._socket_send_string("GET {}".format(var_name), self.socket_name)
+        self._socket_read_byte_list(nbytes, self.socket_name)
 
     def _get_gripper_fault(self):
         self._rq_get_var(FLT, 2)
@@ -99,6 +99,9 @@ class RobotiqScript(URScript):
 
     def _get_gripper_status(self):
         self._rq_get_var(STA, 1)
+        
+    def _get_gripper_pos(self):
+        self._rq_get_var(POS, 1)
 
     def _set_gripper_activate(self):
         self._socket_set_var(GTO, 1, self.socket_name)
@@ -135,6 +138,8 @@ class RobotiqScript(URScript):
 
     def _set_robot_activate(self):
         self._socket_set_var(ACT, 1, self.socket_name)
+        
+    
 
 
 class Robotiq_Two_Finger_Gripper(object):
@@ -168,6 +173,26 @@ class Robotiq_Two_Finger_Gripper(object):
         urscript._set_gripper_position(255)
 
         self.robot.send_program(urscript())
+        
+    def _set_analog_out_to_pos(self):
+        
+        urscript = self._get_new_urscript()
+        urscript.add_line_to_program('rq_pos = socket_get_var("POS","{}")'.format(self.socket_name))
+        urscript._sync()
+        urscript.add_line_to_program('set_standard_analog_out(0, rq_pos / 255.0)')
+        urscript.add_line_to_program('textmsg(rq_pos / 255.0)')
+        self.robot.send_program(urscript())
+        '''
+        # set_analog_out_to_pos
+        prog = "def analogToPos():\n"
+        prog += '\tsocket_close("gripper_socket")\n'
+        prog += '\tsocket_open("127.0.0.1", 63352, "gripper_socket")\n'
+        prog += '\trq_pos = socket_get_var("POS","gripper_socket")\n'
+        prog += '\tsync()\n'
+        prog += "\tset_standard_analog_out(0, rq_pos / 255)\n"
+        prog += "end"
+        self.robot.send_program(prog)
+        '''
 
     def _get_new_urscript(self):
         """
@@ -182,8 +207,8 @@ class Robotiq_Two_Finger_Gripper(object):
         urscript._set_analog_inputrange(1, 0)
         urscript._set_analog_inputrange(2, 0)
         urscript._set_analog_inputrange(3, 0)
-        urscript._set_analog_outputdomain(0, 0)
-        urscript._set_analog_outputdomain(1, 0)
+        urscript._set_analog_outputdomain(0, 1)
+        urscript._set_analog_outputdomain(1, 1)
         urscript._set_tool_voltage(0)
         urscript._set_runstate_outputs()
 
@@ -221,3 +246,14 @@ class Robotiq_Two_Finger_Gripper(object):
 
     def close_gripper(self):
         self.gripper_action(255)
+        
+    def check_obj_grasp(self):
+        urscript = self._get_new_urscript()
+        urscript._get_gripper_object()
+        self.robot.send_program(urscript())
+        
+    def get_pos(self):
+        self._set_analog_out_to_pos()
+        time.sleep(0.1)
+        return self.robot.secmon.get_analog_out(0)/10.0
+        

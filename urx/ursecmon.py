@@ -422,6 +422,12 @@ class SecondaryMonitor(Thread):
             self.wait()
         with self._dictLock:
             return self._dict["MasterBoardData"]["analogInput0"], self._dict["MasterBoardData"]["analogInput1"]
+            
+    def get_analog_out(self, nb, wait=False):
+        if wait:
+            self.wait()
+        with self._dictLock:
+            return self._dict["MasterBoardData"]["analogOutput" + str(nb)]
 
     def is_program_running(self, wait=False):
         """
