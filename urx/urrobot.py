@@ -6,7 +6,11 @@ http://support.universal-robots.com/URRobot/RemoteAccess
 
 import logging
 import numbers
-import collections
+
+try:
+    from collections.abc import Sequence
+except ImportError:
+    from collections import Sequence
 
 from urx import urrtmon
 from urx import ursecmon
@@ -31,9 +35,10 @@ class URRobot(object):
     Rmq: A program sent to the robot i executed immendiatly and any running program is stopped
     """
 
-    def __init__(self, host, use_rt=False):
+    def __init__(self, host, use_rt=False, urFirm=None):
         self.logger = logging.getLogger("urx")
         self.host = host
+        self.urFirm = urFirm
         self.csys = None
 
         self.logger.debug("Opening secondary monitor socket")
@@ -104,6 +109,56 @@ class URRobot(object):
             force += i**2
         return force**0.5
 
+        def get_joint_temperature(self, wait=True):
+        """
+        return measured joint temperature
+        if wait==True, waits for next packet before returning
+        """
+        return self.rtmon.getJOINTTemperature(wait)
+
+    def get_joint_voltage(self, wait=True):
+        """
+        return measured joint voltage
+        if wait==True, waits for next packet before returning
+        """
+        return self.rtmon.getJOINTVoltage(wait)
+
+    def get_joint_current(self, wait=True):
+        """
+        return measured joint current
+        if wait==True, waits for next packet before returning
+        """
+        return self.rtmon.getJOINTCurrent(wait)
+
+    def get_main_voltage(self, wait=True):
+        """
+        return measured Safety Control Board: Main voltage
+        if wait==True, waits for next packet before returning
+        """
+        return self.rtmon.getMAINVoltage(wait)
+
+    def get_robot_voltage(self, wait=True):
+        """
+        return measured Safety Control Board: Robot voltage (48V)
+        if wait==True, waits for next packet before returning
+        """
+        return self.rtmon.getROBOTVoltage(wait)
+
+    def get_robot_current(self, wait=True):
+        """
+        return measured Safety Control Board: Robot current
+        if wait==True, waits for next packet before returning
+        """
+        return self.rtmon.getROBOTCurrent(wait)
+
+    def get_all_rt_data(self, wait=True):
+        """
+        return all data parsed from robot real-time interace as a dict
+        if wait==True, waits for next packet before returning
+        """
+        return self.rtmon.getALLData(wait)
+
+    
     def set_tcp(self, tcp):
         """
         set robot flange to tool tip transformation
@@ -263,7 +318,7 @@ class URRobot(object):
         vels = [round(i, self.max_float_length) for i in velocities]
         vels.append(acc)
         vels.append(min_time)
-        prog = "{}([{},{},{},{},{},{}], a={}, t_min={})".format(command, *vels)
+        prog = "{}([{},{},{},{},{},{}], {}, {})".format(command, *vels)
         self.send_program(prog)
 
     def movej(self, joints, acc=0.1, vel=0.05, wait=True, relative=False, threshold=None):
@@ -303,6 +358,28 @@ class URRobot(object):
         """
         return self.movex("servoc", tpose, acc=acc, vel=vel, wait=wait, relative=relative, threshold=threshold)
 
+    def servoj(self, tjoints, acc=0.01, vel=0.01, t=0.1, lookahead_time=0.2, gain=100, wait=True, relative=False, threshold=None):
+        """
+        Send a servoj command to the robot. See URScript documentation.
+        """
+        if relative:
+            l = self.getj()
+            tjoints = [v + l[i] for i, v in enumerate(tjoints)]
+        prog = self._format_servo("servoj", tjoints, acc=acc, vel=vel, t=t, lookahead_time=lookahead_time, gain=gain)
+        self.send_program(prog)
+        if wait:
+            self._wait_for_move(tjoints[:6], threshold=threshold, joints=True)
+            return self.getj()
+
+    def _format_servo(self, command, tjoints, acc=0.01, vel=0.01, t=0.1, lookahead_time=0.2, gain=100, prefix=""):
+        tjoints = [round(i, self.max_float_length) for i in tjoints]
+        tjoints.append(acc)
+        tjoints.append(vel)
+        tjoints.append(t)
+        tjoints.append(lookahead_time)
+        tjoints.append(gain)
+        return "{}({}[{},{},{},{},{},{}], a={}, v={}, t={}, lookahead_time={}, gain={})".format(command, prefix, *tjoints)
+        
     def _format_move(self, command, tpose, acc, vel, radius=0, prefix=""):
         tpose = [round(i, self.max_float_length) for i in tpose]
         tpose.append(acc)
@@ -347,39 +424,6 @@ class URRobot(object):
         if wait:
             self._wait_for_move(pose_to, threshold=threshold)
             return self.getl()
-
-    def servoj(self, joint_positions, t=0.1, lookahead_time=0.2, gain=100, wait=True, relative=False, threshold=None):
-        """
-        Send a servoj command to the robot. See URScript documentation.
-        """
-        if relative:
-            l = self.getj()
-            joint_positions = [v + l[i] for i, v in enumerate(joint_positions)]
-        prog = self._format_servoj("servoj", joint_positions, t=t, lookahead_time=lookahead_time, gain=gain)
-        self.send_program(prog)
-        if wait:
-            self._wait_for_move(joint_positions[:6], threshold=threshold, joints=True)
-            return self.getj()    
-
-    def servojs(self, joint_positions_list, t=0.008, lookahead_time=0.1, gain=300,
-               wait=True, threshold=None):
-        header = "def myProg():\n"
-        end = "end\n"
-        prog = header
-        for idx, joint_positions in enumerate(joint_positions_list):
-            prog += self._format_servoj(joint_positions, t, lookahead_time, gain) + "\n"
-        prog += end
-        self.send_program(prog)
-        if wait:
-            self._wait_for_move(target=joint_positions_list[-1], threshold=threshold, joints=True)                
-            return self.getj()
-            
-    def _format_servoj(self, joint_positions, t, lookahead_time, gain):
-        joint_positions = [round(i, self.max_float_length) for i in joint_positions]
-        joint_positions.append(t)
-        joint_positions.append(lookahead_time)
-        joint_positions.append(gain)
-        return "servoj([{},{},{},{},{},{}], 0, 0, t={}, lookahead_time={}, gain={})".format(*joint_positions)
             
     def movejs(self, joint_positions_list, acc=0.01, vel=0.01, radius=0.01,
                wait=True, threshold=None):
@@ -418,7 +462,7 @@ class URRobot(object):
         if isinstance(vel, numbers.Number):
             # Make 'vel' a sequence
             vel = len(pose_list) * [vel]
-        elif not isinstance(vel, collections.Sequence):
+        elif not isinstance(vel, Sequence):
             raise RobotException(
                 'movej_tposes: "vel" must be a single number or a sequence!')
         # Check for adequate number of speeds
@@ -467,7 +511,7 @@ class URRobot(object):
         if isinstance(vel, numbers.Number):
             # Make 'vel' a sequence
             vel = len(pose_list) * [vel]
-        elif not isinstance(vel, collections.Sequence):
+        elif not isinstance(vel, Sequence):
             raise RobotException(
                 'movexs: "vel" must be a single number or a sequence!')
         # Check for adequate number of speeds
@@ -549,7 +593,7 @@ class URRobot(object):
         """
         if not self.rtmon:
             self.logger.info("Opening real-time monitor socket")
-            self.rtmon = urrtmon.URRTMonitor(self.host)  # som information is only available on rt interface
+            self.rtmon = urrtmon.URRTMonitor(self.host, self.urFirm)  # som information is only available on rt interface
             self.rtmon.start()
         self.rtmon.set_csys(self.csys)
         return self.rtmon
