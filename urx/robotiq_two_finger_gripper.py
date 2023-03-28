@@ -174,6 +174,8 @@ class Robotiq_Two_Finger_Gripper(object):
 
         self.robot.send_program(urscript())
         
+        time.sleep(2.0)
+        
     def _set_analog_out_to_pos(self):
         
         urscript = self._get_new_urscript()
@@ -254,6 +256,6 @@ class Robotiq_Two_Finger_Gripper(object):
         
     def get_pos(self):
         self._set_analog_out_to_pos()
-        time.sleep(0.1)
+        time.sleep(0.2)
         return self.robot.secmon.get_analog_out(0)/10.0
         

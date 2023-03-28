@@ -109,7 +109,7 @@ class URRobot(object):
             force += i**2
         return force**0.5
 
-        def get_joint_temperature(self, wait=True):
+    def get_joint_temperature(self, wait=True):
         """
         return measured joint temperature
         if wait==True, waits for next packet before returning
