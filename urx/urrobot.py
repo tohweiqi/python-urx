@@ -458,6 +458,18 @@ class URRobot(object):
         header = "def myProg():\n"
         end = "end\n"
         prog = header
+        # Check if 'acc' is a single number or a sequence.
+        if isinstance(acc, numbers.Number):
+            # Make 'acc' a sequence
+            acc = len(pose_list) * [acc]
+        elif not isinstance(acc, Sequence):
+            raise RobotException(
+                'movej_tposes: "acc" must be a single number or a sequence!')
+        # Check for adequate number of accs
+        if len(acc) != len(pose_list):
+            raise RobotException(
+                'movej_tposes: "acc" must be a number or a list '
+                + 'of numbers the same length as "pose_list"!')
         # Check if 'vel' is a single number or a sequence.
         if isinstance(vel, numbers.Number):
             # Make 'vel' a sequence
@@ -474,7 +486,7 @@ class URRobot(object):
         if isinstance(radius, numbers.Number):
             # Make 'radius' a sequence
             radius = len(pose_list) * [radius]
-        elif not isinstance(radius, collections.Sequence):
+        elif not isinstance(radius, Sequence):
             raise RobotException(
                 'movej_tposes: "radius" must be a single number or a sequence!')
         # Ensure that last pose a stopping pose.
@@ -484,9 +496,10 @@ class URRobot(object):
             raise RobotException(
                 'movej_tposes: "radius" must be a number or a list '
                 + 'of numbers the same length as "pose_list"!')
+                
         
         for idx, pose in enumerate(pose_list):
-            prog += self._format_move('movej', pose, acc,
+            prog += self._format_move('movej', pose, acc[idx],
                                       vel[idx], radius[idx],
                                       prefix='p') + "\n"
         prog += end
@@ -523,7 +536,7 @@ class URRobot(object):
         if isinstance(radius, numbers.Number):
             # Make 'radius' a sequence
             radius = len(pose_list) * [radius]
-        elif not isinstance(radius, collections.Sequence):
+        elif not isinstance(radius, Sequence):
             raise RobotException(
                 'movexs: "radius" must be a single number or a sequence!')
         # Ensure that last pose a stopping pose.
