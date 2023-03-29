@@ -192,6 +192,20 @@ class Robot(URRobot):
             pose = t.pose_vector
             new_poses.append(pose)
         return URRobot.movexs(self, command, new_poses, acc, vel, radius, wait=wait, threshold=threshold)
+        
+    def movej_tposes(self, pose_list, acc=0.01, vel=0.01, radius=0.01, wait=True, threshold=None):
+        """
+        Concatenate several movej_tpose commands and applies a blending radius
+        pose_list is a list of pose.
+        This method is usefull since any new command from python
+        to robot make the robot stop
+        """
+        new_poses = []
+        for pose in pose_list:
+            t = self.csys * m3d.Transform(pose)
+            pose = t.pose_vector
+            new_poses.append(pose)
+        return URRobot.movej_tposes(self, new_poses, acc, vel, radius, wait=wait, threshold=threshold)
 
     def movel_tool(self, pose, acc=0.01, vel=0.01, wait=True, threshold=None):
         """
