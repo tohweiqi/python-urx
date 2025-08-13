@@ -158,7 +158,6 @@ class URRobot(object):
         """
         return self.rtmon.getALLData(wait)
 
-    
     def set_tcp(self, tcp):
         """
         set robot flange to tool tip transformation
@@ -379,7 +378,7 @@ class URRobot(object):
         tjoints.append(lookahead_time)
         tjoints.append(gain)
         return "{}({}[{},{},{},{},{},{}], a={}, v={}, t={}, lookahead_time={}, gain={})".format(command, prefix, *tjoints)
-        
+
     def _format_move(self, command, tpose, acc, vel, radius=0, prefix=""):
         tpose = [round(i, self.max_float_length) for i in tpose]
         tpose.append(acc)

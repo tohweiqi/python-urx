@@ -256,7 +256,7 @@ class SecondaryMonitor(Thread):
             self.wait()  # make sure we got some data before someone calls us
         except TimeoutException as ex:
             self.close()
-            raise ex  # make sure we got some data before someone calls us
+            raise ex
 
     def send_program(self, prog):
         """
