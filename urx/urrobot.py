@@ -394,10 +394,10 @@ class URRobot(object):
         if relative:
             l = self.getl()
             tpose = [v + l[i] for i, v in enumerate(tpose)]
-        prog = self._format_move(command, tpose, acc, vel, prefix="p")
+        prog = self._format_move(command, tpose.array, acc, vel, prefix="p")
         self.send_program(prog)
         if wait:
-            self._wait_for_move(tpose[:6], threshold=threshold)
+            self._wait_for_move(tpose.array[:6], threshold=threshold)
             return self.getl()
 
     def getl(self, wait=False, _log=True):

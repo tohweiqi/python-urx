@@ -222,7 +222,7 @@ class Robot(URRobot):
         return current transformation from tcp to current csys
         """
         t = self.get_pose(wait, _log)
-        return t.pose_vector.tolist()
+        return t.pose_vector.get_array().tolist()
 
     def set_gravity(self, vector):
         if isinstance(vector, m3d.Vector):
