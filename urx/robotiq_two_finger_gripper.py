@@ -32,12 +32,19 @@ DOCUMENTATION
 - The file robotiq_2f_gripper_programs_CB3/rq_script.script was referenced to
   create this class
 
-FUTURE FEATURES
-
-Though I haven't developed it yet, if you look in
-robotiq_2f_gripper_programs_CB3/advanced_template_test.script and view function
-"rq_get_var" there is an example of how to determine the current state of the
-gripper and if it's holding an object.
+# WRITE VARIABLES (CAN ALSO READ)
+ACT = ‘ACT’ # act : activate (1 while activated, can be reset to clear fault status)
+GTO = ‘GTO’ # gto : go to (will perform go to with the actions set in pos, for, spe)
+ATR = ‘ATR’ # atr : auto-release (emergency slow move)
+ADR = ‘ADR’ # adr : auto-release direction (open(1) or close(0) during auto-release)
+FOR = ‘FOR’ # for : force (0-255)
+SPE = ‘SPE’ # spe : speed (0-255)
+POS = ‘POS’ # pos : position (0-255), 0 = open
+# READ VARIABLES
+STA = ‘STA’ # status (0 = is reset, 1 = activating, 3 = active)
+PRE = ‘PRE’ # position request (echo of last commanded position)
+OBJ = ‘OBJ’ # object detection (0 = moving, 1 = outer grip, 2 = inner grip, 3 = no object at rest)
+FLT = ‘FLT’ # fault (0=ok, see manual for errors if not zero)
 """  # noqa
 
 import logging
@@ -176,25 +183,22 @@ class Robotiq_Two_Finger_Gripper(object):
         
         time.sleep(2.0)
         
-    def _set_analog_out_to_pos(self):
         
+    def _set_analog_out_to_var(self, var):
+        # Set analog out to variable's value 
         urscript = self._get_new_urscript()
-        urscript.add_line_to_program('rq_pos = socket_get_var("POS","{}")'.format(self.socket_name))
+        urscript.add_line_to_program('rq_var = socket_get_var("{}","{}")'.format(var, self.socket_name))
         urscript._sync()
-        urscript.add_line_to_program('set_standard_analog_out(0, rq_pos / 255.0)')
-        urscript.add_line_to_program('textmsg(rq_pos / 255.0)')
+        urscript.add_line_to_program('set_standard_analog_out(0, rq_var / 255.0)')
+        urscript.add_line_to_program('textmsg(rq_var / 255.0)')
         self.robot.send_program(urscript())
-        '''
-        # set_analog_out_to_pos
-        prog = "def analogToPos():\n"
-        prog += '\tsocket_close("gripper_socket")\n'
-        prog += '\tsocket_open("127.0.0.1", 63352, "gripper_socket")\n'
-        prog += '\trq_pos = socket_get_var("POS","gripper_socket")\n'
-        prog += '\tsync()\n'
-        prog += "\tset_standard_analog_out(0, rq_pos / 255)\n"
-        prog += "end"
-        self.robot.send_program(prog)
-        '''
+        
+        
+    def _get_var(self, var):
+        self._set_analog_out_to_var(var)
+        time.sleep(0.2)
+        return int(self.robot.secmon.get_analog_out(0)/10.0*255)
+
 
     def _get_new_urscript(self):
         """
@@ -250,12 +254,9 @@ class Robotiq_Two_Finger_Gripper(object):
         self.gripper_action(255)
         
     def check_obj_grasp(self):
-        urscript = self._get_new_urscript()
-        urscript._get_gripper_object()
-        self.robot.send_program(urscript())
+    # object detection (0 = moving, 1 = outer grip, 2 = inner grip, 3 = no object at rest)
+        return self._get_var(OBJ)
         
     def get_pos(self):
-        self._set_analog_out_to_pos()
-        time.sleep(0.2)
-        return self.robot.secmon.get_analog_out(0)/10.0
+        return self._get_var(POS)
         
